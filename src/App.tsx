@@ -77,8 +77,16 @@ function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'all' | 'downloads'>('all');
+  const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
 
   useEffect(() => {
+    const stored = localStorage.getItem('downloadedPdfs');
+    if (stored) {
+      try {
+        setDownloadedPdfIds(JSON.parse(stored));
+      } catch (e) {}
+    }
     fetchData();
   }, []);
 
@@ -122,15 +130,28 @@ function ClientPortal() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+
+      setDownloadedPdfIds(prev => {
+        if (!prev.includes(id)) {
+          const next = [...prev, id];
+          localStorage.setItem('downloadedPdfs', JSON.stringify(next));
+          return next;
+        }
+        return prev;
+      });
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  const displayedPdfs = pdfs.filter(pdf => 
-    (searchQuery ? true : (currentFolder ? pdf.folderId === currentFolder.id : !pdf.folderId)) &&
-    pdf.filename.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const displayedPdfs = pdfs.filter(pdf => {
+    if (viewMode === 'downloads') {
+      if (!downloadedPdfIds.includes(pdf.id)) return false;
+      return pdf.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return (searchQuery ? true : (currentFolder ? pdf.folderId === currentFolder.id : !pdf.folderId)) &&
+    pdf.filename.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
@@ -144,6 +165,13 @@ function ClientPortal() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <button 
+              onClick={() => { setViewMode(viewMode === 'all' ? 'downloads' : 'all'); setCurrentFolder(null); }}
+              className={`text-sm font-medium flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md ${viewMode === 'downloads' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">My Downloads</span>
+            </button>
             <Link 
               to="/about" 
               className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -228,7 +256,7 @@ function ClientPortal() {
           </div>
         ) : (
           <>
-            {!currentFolder && !searchQuery && folders.length > 0 && (
+            {!currentFolder && !searchQuery && viewMode === 'all' && folders.length > 0 && (
               <div className="mb-12">
                 <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">Genres / Folders</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -250,7 +278,7 @@ function ClientPortal() {
 
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                {currentFolder ? 'Documents in Genre' : (searchQuery ? 'Search Results' : 'Uncategorized Documents')}
+                {viewMode === 'downloads' ? 'My Downloads' : (currentFolder ? 'Documents in Genre' : (searchQuery ? 'Search Results' : 'Uncategorized Documents'))}
               </h3>
               <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
                 {displayedPdfs.length} files
