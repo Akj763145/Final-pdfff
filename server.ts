@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
@@ -297,6 +297,47 @@ app.get('/api/pdfs/:id/download', async (req, res) => {
     res.send(buffer);
   } catch (error: any) {
     console.error('Download error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Server error' });
+    }
+  }
+});
+
+app.get('/api/pdfs/:id/view', async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    
+    // 1. Get PDF metadata
+    const { data: pdf, error: fetchError } = await supabase
+      .from('pdfs')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    
+    if (fetchError || !pdf) {
+      return res.status(404).json({ error: 'PDF not found' });
+    }
+
+    // 2. Download file buffer from Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('pdfs')
+      .download(pdf.storage_path);
+
+    if (downloadError || !fileData) {
+      throw downloadError || new Error('File data not found');
+    }
+
+    // 3. Send file to client
+    const buffer = Buffer.from(await fileData.arrayBuffer());
+    
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Content-Type', 'application/pdf');
+    const encodedName = encodeURIComponent(pdf.filename);
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodedName}`);
+    
+    res.send(buffer);
+  } catch (error: any) {
+    console.error('View error:', error);
     if (!res.headersSent) {
       res.status(500).json({ error: error.message || 'Server error' });
     }

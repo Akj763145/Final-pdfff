@@ -1,6 +1,6 @@
 import { HashRouter, Routes, Route, Link, useNavigate } from 'react-router';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun } from 'lucide-react';
+import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 
@@ -79,6 +79,18 @@ function ClientPortal() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'downloads'>('all');
   const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('downloadedPdfs');
@@ -165,26 +177,53 @@ function ClientPortal() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <button 
-              onClick={() => { setViewMode(viewMode === 'all' ? 'downloads' : 'all'); setCurrentFolder(null); }}
-              className={`text-sm font-medium flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md ${viewMode === 'downloads' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">My Downloads</span>
-            </button>
             <Link 
               to="/about" 
               className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               About
             </Link>
-            <Link 
-              to="/admin" 
-              className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              <Lock className="w-4 h-4" />
-              Admin Access
-            </Link>
+            <div className="relative" ref={menuRef}>
+              <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                aria-label="Menu"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              
+              <AnimatePresence>
+                {isMenuOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden z-50 py-1"
+                  >
+                    <button 
+                      onClick={() => { 
+                        setViewMode(viewMode === 'all' ? 'downloads' : 'all'); 
+                        setCurrentFolder(null); 
+                        setIsMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition-colors ${viewMode === 'downloads' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
+                    >
+                      <Download className="w-4 h-4" />
+                      My Downloads
+                    </button>
+                    <Link 
+                      to="/admin" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 flex items-center gap-2 transition-colors"
+                    >
+                      <Lock className="w-4 h-4" />
+                      Admin Access
+                    </Link>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </header>
@@ -334,13 +373,22 @@ function ClientPortal() {
                         <span className="font-medium text-zinc-600 dark:text-zinc-300">{formatBytes(pdf.size)}</span>
                         <span>{formatDate(pdf.uploadDate)}</span>
                       </div>
-                      <button
-                        onClick={() => handleDownload(pdf.id, pdf.filename)}
-                        className="mt-auto w-full flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-zinc-900 py-3 px-4 rounded-xl font-medium transition-colors shadow-sm dark:shadow-none"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download
-                      </button>
+                      <div className="mt-auto flex gap-2">
+                        <button
+                          onClick={() => window.open(`/api/pdfs/${pdf.id}/view`, '_blank')}
+                          className="flex-1 flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-3 px-4 rounded-xl font-medium transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleDownload(pdf.id, pdf.filename)}
+                          className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-zinc-900 py-3 px-4 rounded-xl font-medium transition-colors shadow-sm dark:shadow-none"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download
+                        </button>
+                      </div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -912,13 +960,29 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                                     </div>
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleDeletePdf(pdf.id)}
-                                  className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors shrink-0"
-                                  title="Delete document"
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    onClick={() => window.open(`/api/pdfs/${pdf.id}/view`, '_blank')}
+                                    className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
+                                    title="View document"
+                                  >
+                                    <Eye className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownload(pdf.id, pdf.filename)}
+                                    className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
+                                    title="Download document"
+                                  >
+                                    <Download className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePdf(pdf.id)}
+                                    className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                                    title="Delete document"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                </div>
                               </motion.li>
                             ))}
                           </AnimatePresence>
