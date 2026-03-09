@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router';
+import { HashRouter, Routes, Route, Link, useNavigate } from 'react-router';
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -133,7 +133,7 @@ function ClientPortal() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
       <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -144,6 +144,12 @@ function ClientPortal() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Link 
+              to="/about" 
+              className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              About
+            </Link>
             <Link 
               to="/admin" 
               className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -315,6 +321,12 @@ function ClientPortal() {
           </>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 py-8 text-center bg-white dark:bg-zinc-900 transition-colors duration-200">
+        <p className="text-zinc-500 dark:text-zinc-400 font-medium">proudly made by bihari</p>
+        <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">By - Ayush and Ayush</p>
+      </footer>
     </div>
   );
 }
@@ -626,7 +638,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -637,6 +649,12 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <ThemeToggle />
+            <Link 
+              to="/about" 
+              className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 hidden sm:block"
+            >
+              About
+            </Link>
             <Link 
               to="/" 
               className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 hidden sm:block"
@@ -888,6 +906,12 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
         </div>
       </main>
 
+      {/* Footer */}
+      <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 py-8 text-center bg-white dark:bg-zinc-900 transition-colors duration-200">
+        <p className="text-zinc-500 dark:text-zinc-400 font-medium">proudly made by bihari</p>
+        <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">By - Ayush and Ayush</p>
+      </footer>
+
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirm && (
@@ -931,15 +955,97 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
   );
 }
 
+// --- About Page ---
+function AboutPage() {
+  return (
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
+      <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 transition-colors duration-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-none">
+              <FileText className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">Pdfplace</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link 
+              to="/" 
+              className="text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              Home
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 flex-1 w-full">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-8 md:p-12 shadow-sm dark:shadow-none"
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight mb-6">
+            About Us
+          </h2>
+          <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-8 leading-relaxed">
+            Welcome to Pdfplace, your secure cloud vault for accessing and managing the latest resources, guides, and official documents. We are dedicated to providing a seamless and organized experience for all your PDF needs.
+          </p>
+          
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              Contact Information
+            </h3>
+            
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Email</p>
+                  <a href="mailto:AK7631459148@GMAIL.COM" className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    AK7631459148@GMAIL.COM
+                  </a>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Phone</p>
+                  <a href="tel:9708194665" className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    9708194665
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </main>
+
+      {/* Footer */}
+      <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 py-8 text-center bg-white dark:bg-zinc-900 transition-colors duration-200">
+        <p className="text-zinc-500 dark:text-zinc-400 font-medium">proudly made by bihari</p>
+        <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">By - Ayush and Ayush</p>
+      </footer>
+    </div>
+  );
+}
+
 // --- Main App Component ---
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<ClientPortal />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/admin" element={<AdminRoute />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
