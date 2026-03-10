@@ -687,7 +687,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     let failCount = 0;
 
     for (const file of files) {
-      if (file.type !== 'application/pdf' || file.size > 10 * 1024 * 1024) {
+      if (file.type !== 'application/pdf' || file.size > 25 * 1024 * 1024) {
         failCount++;
         continue;
       }
@@ -722,7 +722,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
       fetchData();
     }
     if (failCount > 0) {
-      setError(`Failed to upload ${failCount} file(s). Ensure they are PDFs under 10MB.`);
+      setError(`Failed to upload ${failCount} file(s). Ensure they are PDFs under 25MB.`);
     }
     
     if (fileInputRef.current) {
@@ -906,7 +906,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                   <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
                     {uploading ? 'Uploading to cloud...' : 'Select PDF files'}
                   </h3>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Max size: 10MB per file</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Max size: 25MB per file</p>
                   
                   <input
                     type="file"
