@@ -143,17 +143,69 @@ app.get('/api/pdfs', async (req, res) => {
 
     if (error) throw error;
 
-    const clientPdfs = data.map((p: any) => ({
-      id: p.id,
-      filename: p.filename,
-      uploadDate: p.upload_date,
-      size: p.size,
-      folderId: p.folder_id
-    }));
+    const clientPdfs = data.map((p: any) => {
+      let linkUrl = p.storage_path;
+      if (p.size === 0 && linkUrl && !linkUrl.startsWith('http://') && !linkUrl.startsWith('https://')) {
+        linkUrl = 'https://' + linkUrl;
+      }
+      return {
+        id: p.id,
+        filename: p.filename,
+        uploadDate: p.upload_date,
+        size: p.size,
+        folderId: p.folder_id,
+        isLink: p.size === 0,
+        link: p.size === 0 ? linkUrl : null
+      };
+    });
     
     res.json(clientPdfs);
   } catch (error: any) {
     console.error('Fetch error:', error);
+    res.status(500).json({ error: error.message || 'Server error' });
+  }
+});
+
+app.post('/api/admin/upload-link', requireAdmin, async (req, res) => {
+  try {
+    const { filename, link, folderId } = req.body;
+    if (!filename || !link) return res.status(400).json({ error: 'Filename and link are required' });
+
+    let formattedLink = link.trim();
+    if (!formattedLink.startsWith('http://') && !formattedLink.startsWith('https://')) {
+      formattedLink = 'https://' + formattedLink;
+    }
+
+    const supabase = getSupabase();
+    const newPdf = {
+      id: uuidv4(),
+      filename: filename,
+      storage_path: formattedLink,
+      size: 0,
+      upload_date: new Date().toISOString(),
+      folder_id: folderId || null
+    };
+
+    const { error: dbError } = await supabase
+      .from('pdfs')
+      .insert([newPdf]);
+
+    if (dbError) throw dbError;
+
+    res.json({ 
+      message: 'Link added successfully', 
+      pdf: {
+        id: newPdf.id,
+        filename: newPdf.filename,
+        uploadDate: newPdf.upload_date,
+        size: newPdf.size,
+        folderId: newPdf.folder_id,
+        isLink: true,
+        link: newPdf.storage_path
+      }
+    });
+  } catch (error: any) {
+    console.error('Upload link error:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });
@@ -228,10 +280,10 @@ app.delete('/api/admin/pdfs/:id', requireAdmin, async (req, res) => {
   try {
     const supabase = getSupabase();
     
-    // 1. Get the storage path
+    // 1. Get the storage path and size
     const { data: pdf, error: fetchError } = await supabase
       .from('pdfs')
-      .select('storage_path')
+      .select('storage_path, size')
       .eq('id', req.params.id)
       .single();
 
@@ -239,8 +291,8 @@ app.delete('/api/admin/pdfs/:id', requireAdmin, async (req, res) => {
       throw fetchError;
     }
 
-    // 2. Delete from Storage
-    if (pdf && pdf.storage_path) {
+    // 2. Delete from Storage (only if it's not an external link)
+    if (pdf && pdf.storage_path && pdf.size !== 0) {
       const { error: storageError } = await supabase.storage
         .from('pdfs')
         .remove([pdf.storage_path]);

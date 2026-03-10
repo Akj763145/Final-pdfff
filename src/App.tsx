@@ -17,6 +17,8 @@ interface PdfFile {
   uploadDate: string;
   size: number;
   folderId: string | null;
+  isLink?: boolean;
+  link?: string | null;
 }
 
 // --- Helper Components ---
@@ -125,35 +127,26 @@ function ClientPortal() {
     }
   };
 
-  const handleDownload = async (id: string, filename: string) => {
-    try {
-      const res = await fetch(`/api/pdfs/${id}/download`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to download PDF');
-      }
-      
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+  const handleDownload = (pdf: PdfFile) => {
+    if (pdf.isLink && pdf.link) {
+      window.open(pdf.link, '_blank');
+    } else {
       const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
+      a.href = `/api/pdfs/${pdf.id}/download`;
+      a.download = pdf.filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      setDownloadedPdfIds(prev => {
-        if (!prev.includes(id)) {
-          const next = [...prev, id];
-          localStorage.setItem('downloadedPdfs', JSON.stringify(next));
-          return next;
-        }
-        return prev;
-      });
-    } catch (err: any) {
-      setError(err.message);
     }
+
+    setDownloadedPdfIds(prev => {
+      if (!prev.includes(pdf.id)) {
+        const next = [...prev, pdf.id];
+        localStorage.setItem('downloadedPdfs', JSON.stringify(next));
+        return next;
+      }
+      return prev;
+    });
   };
 
   const displayedPdfs = pdfs.filter(pdf => {
@@ -229,21 +222,28 @@ function ClientPortal() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-        {currentFolder && !searchQuery ? (
+        {(currentFolder || viewMode === 'downloads') && !searchQuery ? (
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="mb-12 flex items-center gap-4"
           >
             <button 
-              onClick={() => setCurrentFolder(null)} 
+              onClick={() => {
+                if (viewMode === 'downloads') setViewMode('all');
+                else setCurrentFolder(null);
+              }} 
               className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all shadow-sm dark:shadow-none"
             >
               <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
             </button>
             <div>
-              <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{currentFolder.name}</h2>
-              <p className="text-zinc-500 dark:text-zinc-400 mt-1">Viewing documents in this genre.</p>
+              <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+                {viewMode === 'downloads' ? 'My Downloads' : currentFolder?.name}
+              </h2>
+              <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+                {viewMode === 'downloads' ? 'Viewing your downloaded documents.' : 'Viewing documents in this genre.'}
+              </p>
             </div>
           </motion.div>
         ) : (
@@ -317,7 +317,7 @@ function ClientPortal() {
 
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                {viewMode === 'downloads' ? 'My Downloads' : (currentFolder ? 'Documents in Genre' : (searchQuery ? 'Search Results' : 'Uncategorized Documents'))}
+                {searchQuery ? 'Search Results' : (viewMode === 'downloads' ? 'Downloaded Documents' : (currentFolder ? 'Documents in Genre' : 'Uncategorized Documents'))}
               </h3>
               <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
                 {displayedPdfs.length} files
@@ -369,20 +369,19 @@ function ClientPortal() {
                       <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 line-clamp-2 leading-tight" title={pdf.filename}>
                         {pdf.filename}
                       </h3>
-                      <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 flex flex-col gap-1.5">
-                        <span className="font-medium text-zinc-600 dark:text-zinc-300">{formatBytes(pdf.size)}</span>
+                      <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
                         <span>{formatDate(pdf.uploadDate)}</span>
                       </div>
                       <div className="mt-auto flex gap-2">
                         <button
-                          onClick={() => window.open(`/api/pdfs/${pdf.id}/view`, '_blank')}
+                          onClick={() => window.open(pdf.isLink && pdf.link ? pdf.link : `/api/pdfs/${pdf.id}/view`, '_blank')}
                           className="flex-1 flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-3 px-4 rounded-xl font-medium transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                           View
                         </button>
                         <button
-                          onClick={() => handleDownload(pdf.id, pdf.filename)}
+                          onClick={() => handleDownload(pdf)}
                           className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-zinc-900 py-3 px-4 rounded-xl font-medium transition-colors shadow-sm dark:shadow-none"
                         >
                           <Download className="w-4 h-4" />
@@ -515,6 +514,10 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [uploadFolderId, setUploadFolderId] = useState<string>('');
+  const [uploadMode, setUploadMode] = useState<'file' | 'link'>('file');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkFilename, setLinkFilename] = useState('');
+  const [uploadingLink, setUploadingLink] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -555,6 +558,19 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownload = (pdf: PdfFile) => {
+    if (pdf.isLink && pdf.link) {
+      window.open(pdf.link, '_blank');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = `/api/pdfs/${pdf.id}/download`;
+    a.download = pdf.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleCreateFolder = async () => {
@@ -615,6 +631,47 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  const handleLinkUpload = async () => {
+    if (!linkUrl.trim() || !linkFilename.trim()) {
+      setError('Please provide both a link and a filename');
+      return;
+    }
+    
+    setUploadingLink(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const res = await fetch('/api/admin/upload-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          filename: linkFilename.trim(),
+          link: linkUrl.trim(),
+          folderId: uploadFolderId || null
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to upload link');
+      }
+
+      setSuccess('Link added successfully');
+      setLinkUrl('');
+      setLinkFilename('');
+      fetchData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUploadingLink(false);
     }
   };
 
@@ -795,9 +852,25 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
             )}
 
             <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8 shadow-sm dark:shadow-none sticky top-24">
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6 tracking-tight">
-                Upload Document(s)
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+                  Upload Document(s)
+                </h2>
+                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+                  <button
+                    onClick={() => setUploadMode('file')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${uploadMode === 'file' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                  >
+                    File
+                  </button>
+                  <button
+                    onClick={() => setUploadMode('link')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${uploadMode === 'link' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                  >
+                    Link
+                  </button>
+                </div>
+              </div>
               
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-2">Destination Folder</label>
@@ -814,44 +887,79 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                 </select>
               </div>
               
-              <div 
-                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 ${
-                  uploading 
-                    ? 'border-indigo-300 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/10' 
-                    : 'border-zinc-300 dark:border-zinc-700 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-500/10 bg-zinc-50/50 dark:bg-zinc-800/30'
-                }`}
-              >
-                <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${uploading ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none text-zinc-400 dark:text-zinc-500'}`}>
-                  {uploading ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <Upload className="w-6 h-6" />
-                  )}
-                </div>
-                
-                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
-                  {uploading ? 'Uploading to cloud...' : 'Select PDF files'}
-                </h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Max size: 10MB per file</p>
-                
-                <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  multiple
-                  onChange={handleFileChange}
-                  className="hidden"
-                  ref={fileInputRef}
-                  disabled={uploading}
-                />
-                
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-3 px-4 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 shadow-sm dark:shadow-none"
+              {uploadMode === 'file' ? (
+                <div 
+                  className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 ${
+                    uploading 
+                      ? 'border-indigo-300 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/10' 
+                      : 'border-zinc-300 dark:border-zinc-700 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-500/10 bg-zinc-50/50 dark:bg-zinc-800/30'
+                  }`}
                 >
-                  Browse Files
-                </button>
-              </div>
+                  <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${uploading ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none text-zinc-400 dark:text-zinc-500'}`}>
+                    {uploading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <Upload className="w-6 h-6" />
+                    )}
+                  </div>
+                  
+                  <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
+                    {uploading ? 'Uploading to cloud...' : 'Select PDF files'}
+                  </h3>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Max size: 10MB per file</p>
+                  
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                    ref={fileInputRef}
+                    disabled={uploading}
+                  />
+                  
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-3 px-4 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 shadow-sm dark:shadow-none"
+                  >
+                    Browse Files
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-2">Filename</label>
+                    <input
+                      type="text"
+                      value={linkFilename}
+                      onChange={(e) => setLinkFilename(e.target.value)}
+                      placeholder="e.g. Important Document.pdf"
+                      disabled={uploadingLink}
+                      className="w-full px-4 py-3 bg-zinc-50/50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 dark:focus:border-indigo-500 outline-none transition-all text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-2">Link URL</label>
+                    <input
+                      type="url"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      placeholder="https://example.com/document.pdf"
+                      disabled={uploadingLink}
+                      className="w-full px-4 py-3 bg-zinc-50/50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 dark:focus:border-indigo-500 outline-none transition-all text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                    />
+                  </div>
+                  <button
+                    onClick={handleLinkUpload}
+                    disabled={uploadingLink || !linkUrl.trim() || !linkFilename.trim()}
+                    className="w-full bg-zinc-900 dark:bg-zinc-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-zinc-900 px-6 py-3 rounded-xl font-semibold transition-all shadow-sm dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {uploadingLink ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                    {uploadingLink ? 'Adding Link...' : 'Add Link'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -962,14 +1070,14 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <button
-                                    onClick={() => window.open(`/api/pdfs/${pdf.id}/view`, '_blank')}
+                                    onClick={() => window.open(pdf.isLink && pdf.link ? pdf.link : `/api/pdfs/${pdf.id}/view`, '_blank')}
                                     className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
                                     title="View document"
                                   >
                                     <Eye className="w-5 h-5" />
                                   </button>
                                   <button
-                                    onClick={() => handleDownload(pdf.id, pdf.filename)}
+                                    onClick={() => handleDownload(pdf)}
                                     className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
                                     title="Download document"
                                   >
