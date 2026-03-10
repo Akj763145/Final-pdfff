@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Link, useNavigate } from 'react-router';
+import { HashRouter, Routes, Route, Link, useNavigate, useSearchParams } from 'react-router';
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -75,11 +75,39 @@ function ThemeToggle() {
 function ClientPortal() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const folderId = searchParams.get('folder');
+  const currentFolder = folders.find(f => f.id === folderId) || null;
+
+  const setCurrentFolder = (folder: Folder | null) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      if (folder) {
+        newParams.set('folder', folder.id);
+      } else {
+        newParams.delete('folder');
+      }
+      return newParams;
+    });
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'all' | 'downloads'>('all');
+  const viewMode = (searchParams.get('view') as 'all' | 'downloads') || 'all';
+
+  const setViewMode = (mode: 'all' | 'downloads') => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      if (mode === 'downloads') {
+        newParams.set('view', 'downloads');
+      } else {
+        newParams.delete('view');
+      }
+      return newParams;
+    });
+  };
+
   const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -196,8 +224,16 @@ function ClientPortal() {
                   >
                     <button 
                       onClick={() => { 
-                        setViewMode(viewMode === 'all' ? 'downloads' : 'all'); 
-                        setCurrentFolder(null); 
+                        setSearchParams(prev => {
+                          const newParams = new URLSearchParams(prev);
+                          if (viewMode === 'all') {
+                            newParams.set('view', 'downloads');
+                          } else {
+                            newParams.delete('view');
+                          }
+                          newParams.delete('folder');
+                          return newParams;
+                        });
                         setIsMenuOpen(false);
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition-colors ${viewMode === 'downloads' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
@@ -512,7 +548,22 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
 function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => void }) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const folderId = searchParams.get('folder');
+  const currentFolder = folders.find(f => f.id === folderId) || null;
+
+  const setCurrentFolder = (folder: Folder | null) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      if (folder) {
+        newParams.set('folder', folder.id);
+      } else {
+        newParams.delete('folder');
+      }
+      return newParams;
+    });
+  };
+
   const [uploadFolderId, setUploadFolderId] = useState<string>('');
   const [uploadMode, setUploadMode] = useState<'file' | 'link'>('file');
   const [linkUrl, setLinkUrl] = useState('');
