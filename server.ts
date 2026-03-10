@@ -41,7 +41,7 @@ const upload = multer({
 });
 
 // Admin Auth Middleware
-const ADMIN_PASSWORD = 'admin'; // Hardcoded password
+const ADMIN_PASSWORD = '7673085672'; // Hardcoded password
 const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
   if (authHeader === `Bearer ${ADMIN_PASSWORD}`) {

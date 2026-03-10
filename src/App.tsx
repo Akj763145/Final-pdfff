@@ -298,17 +298,17 @@ function ClientPortal() {
             {!currentFolder && !searchQuery && viewMode === 'all' && folders.length > 0 && (
               <div className="mb-12">
                 <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6">Genres / Folders</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
                   {folders.map(folder => (
                     <button 
                       key={folder.id}
                       onClick={() => setCurrentFolder(folder)}
-                      className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 rounded-2xl flex items-center gap-4 hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:shadow-md hover:shadow-indigo-500/5 dark:hover:shadow-none transition-all group text-left"
+                      className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl flex flex-col items-center gap-3 hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:shadow-md hover:shadow-indigo-500/5 dark:hover:shadow-none transition-all group text-center"
                     >
                       <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 transition-colors shrink-0">
                         <FolderIcon className="w-6 h-6 fill-indigo-100 dark:fill-indigo-500/20" />
                       </div>
-                      <span className="font-semibold text-zinc-900 dark:text-zinc-50 truncate text-lg">{folder.name}</span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-50 text-sm break-words w-full">{folder.name}</span>
                     </button>
                   ))}
                 </div>
@@ -340,7 +340,7 @@ function ClientPortal() {
               </motion.div>
             ) : (
               <motion.div 
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4"
                 initial="hidden"
                 animate="show"
                 variants={{
@@ -361,31 +361,31 @@ function ClientPortal() {
                         show: { opacity: 1, y: 0 }
                       }}
                       exit={{ opacity: 0, scale: 0.9 }}
-                      className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col hover:shadow-xl hover:shadow-zinc-200/40 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 group"
+                      className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 flex flex-col hover:shadow-xl hover:shadow-zinc-200/40 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 group"
                     >
-                      <div className="w-12 h-12 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-5 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 transition-colors">
-                        <FileText className="w-6 h-6" />
+                      <div className="w-10 h-10 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-3 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 transition-colors">
+                        <FileText className="w-5 h-5" />
                       </div>
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 line-clamp-2 leading-tight" title={pdf.filename}>
+                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-1 line-clamp-2 leading-tight" title={pdf.filename}>
                         {pdf.filename}
                       </h3>
-                      <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
                         <span>{formatDate(pdf.uploadDate)}</span>
                       </div>
                       <div className="mt-auto flex gap-2">
                         <button
                           onClick={() => window.open(pdf.isLink && pdf.link ? pdf.link : `/api/pdfs/${pdf.id}/view`, '_blank')}
-                          className="flex-1 flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-3 px-4 rounded-xl font-medium transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-2 px-2 rounded-lg text-xs font-medium transition-colors"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                           View
                         </button>
                         <button
                           onClick={() => handleDownload(pdf)}
-                          className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-zinc-900 py-3 px-4 rounded-xl font-medium transition-colors shadow-sm dark:shadow-none"
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-900 dark:bg-zinc-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-zinc-900 py-2 px-2 rounded-lg text-xs font-medium transition-colors shadow-sm dark:shadow-none"
                         >
-                          <Download className="w-4 h-4" />
-                          Download
+                          <Download className="w-3.5 h-3.5" />
+                          Save
                         </button>
                       </div>
                     </motion.div>
