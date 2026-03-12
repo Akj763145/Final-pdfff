@@ -366,7 +366,7 @@ function ClientPortal() {
                       <div className="w-10 h-10 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-3 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 transition-colors">
                         <FileText className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-1 break-words leading-tight" title={pdf.filename}>
+                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-1 line-clamp-2 leading-tight" title={pdf.filename}>
                         {pdf.filename}
                       </h3>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
@@ -1058,7 +1058,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                                     <FileText className="w-6 h-6" />
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50 break-words" title={pdf.filename}>
+                                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50 truncate" title={pdf.filename}>
                                       {pdf.filename}
                                     </p>
                                     <div className="flex items-center gap-2 sm:gap-3 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
