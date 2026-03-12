@@ -23,6 +23,28 @@ interface PdfFile {
 }
 
 // --- Helper Components ---
+function Logo({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" className={className}>
+      <rect width="100%" height="100%" fill="#0a0a0a" rx="20"/>
+      <g transform="translate(200, 210)">
+        <circle cx="0" cy="0" r="140" fill="#161616" />
+        <circle cx="0" cy="0" r="125" fill="none" stroke="#ffffff" strokeWidth="4.5" />
+        <circle cx="0" cy="0" r="110" fill="none" stroke="#E53935" strokeWidth="3"
+                strokeDasharray="299.4 46.15" strokeDashoffset="322.5" />
+        <text x="0" y="-10" fontFamily="'Georgia', 'Times New Roman', serif" fontSize="115" fill="#ffffff" textAnchor="middle" fontWeight="normal">P</text>
+        <text x="0" y="90" fontFamily="'Georgia', 'Times New Roman', serif" fontSize="115" fill="#ffffff" textAnchor="middle" fontWeight="normal">W</text>
+      </g>
+      <text x="200" y="420" fontFamily="'Arial', sans-serif" fontSize="34" fill="#E53935" textAnchor="middle" fontWeight="bold" letterSpacing="3">
+        PDF <tspan fill="#ffffff">WALLAH</tspan>
+      </text>
+      <text x="200" y="450" fontFamily="'Arial', sans-serif" fontSize="12" fill="#888888" textAnchor="middle" fontWeight="bold" letterSpacing="4">
+              DOWNLOAD  ANY PDF 
+      </text>
+    </svg>
+  );
+}
+
 function formatBytes(bytes: number, decimals = 2) {
   if (!+bytes) return '0 Bytes';
   const k = 1024;
@@ -79,6 +101,7 @@ function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-desc' | 'size-asc'>('date-desc');
   const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -195,6 +218,23 @@ function ClientPortal() {
     }
     return (searchQuery ? true : (currentFolder ? pdf.folderId === currentFolder.id : !pdf.folderId)) &&
     pdf.filename.toLowerCase().includes(searchQuery.toLowerCase());
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case 'date-desc':
+        return new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime();
+      case 'date-asc':
+        return new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime();
+      case 'name-asc':
+        return a.filename.localeCompare(b.filename);
+      case 'name-desc':
+        return b.filename.localeCompare(a.filename);
+      case 'size-desc':
+        return b.size - a.size;
+      case 'size-asc':
+        return a.size - b.size;
+      default:
+        return 0;
+    }
   });
 
   return (
@@ -202,10 +242,8 @@ function ClientPortal() {
       <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-none">
-              <FileText className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">Pdfplace</h1>
+            <Logo className="w-10 h-10 rounded-lg shadow-sm" />
+            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">PDF Wallah</h1>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -354,13 +392,27 @@ function ClientPortal() {
               </div>
             )}
 
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
                 {searchQuery ? 'Search Results' : (viewMode === 'downloads' ? 'Downloaded Documents' : (currentFolder ? 'Documents in Genre' : 'Uncategorized Documents'))}
               </h3>
-              <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-                {displayedPdfs.length} files
-              </span>
+              <div className="flex items-center gap-3">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
+                >
+                  <option value="date-desc">Newest First</option>
+                  <option value="date-asc">Oldest First</option>
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                  <option value="size-desc">Largest First</option>
+                  <option value="size-asc">Smallest First</option>
+                </select>
+                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full">
+                  {displayedPdfs.length} files
+                </span>
+              </div>
             </div>
 
             {displayedPdfs.length === 0 ? (
@@ -1217,10 +1269,8 @@ function AboutPage() {
       <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-none">
-              <FileText className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">Pdfplace</h1>
+            <Logo className="w-10 h-10 rounded-lg shadow-sm" />
+            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">PDF Wallah</h1>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -1245,7 +1295,7 @@ function AboutPage() {
             About Us
           </h2>
           <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-8 leading-relaxed">
-            Welcome to Pdfplace, your secure cloud vault for accessing and managing the latest resources, guides, and official documents. We are dedicated to providing a seamless and organized experience for all your PDF needs.
+            Welcome to PDF Wallah, your secure cloud vault for accessing and managing the latest resources, guides, and official documents. We are dedicated to providing a seamless and organized experience for all your PDF needs.
           </p>
           
           <div className="space-y-6">
