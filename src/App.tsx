@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Link, useNavigate } from 'react-router';
+import { HashRouter, Routes, Route, Link, useNavigate, useSearchParams } from 'react-router';
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -75,14 +75,33 @@ function ThemeToggle() {
 function ClientPortal() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'all' | 'downloads'>('all');
   const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const folderId = searchParams.get('folder');
+  const viewMode = searchParams.get('view') === 'downloads' ? 'downloads' : 'all';
+  const currentFolder = folders.find(f => f.id === folderId) || null;
+
+  const setCurrentFolder = (folder: Folder | null) => {
+    if (folder) {
+      setSearchParams({ folder: folder.id });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const setViewMode = (mode: 'all' | 'downloads') => {
+    if (mode === 'downloads') {
+      setSearchParams({ view: 'downloads' });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -512,7 +531,6 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
 function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => void }) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [uploadFolderId, setUploadFolderId] = useState<string>('');
   const [uploadMode, setUploadMode] = useState<'file' | 'link'>('file');
   const [linkUrl, setLinkUrl] = useState('');
@@ -528,6 +546,18 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
   const [success, setSuccess] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'folder' | 'pdf', id: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const folderId = searchParams.get('folder');
+  const currentFolder = folders.find(f => f.id === folderId) || null;
+
+  const setCurrentFolder = (folder: Folder | null) => {
+    if (folder) {
+      setSearchParams({ folder: folder.id });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   useEffect(() => {
     fetchData();
