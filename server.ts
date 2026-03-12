@@ -26,6 +26,17 @@ const getSupabase = () => {
   });
 };
 
+const handleSupabaseError = (error: any, res: express.Response, defaultMessage: string) => {
+  console.error(defaultMessage, error);
+  
+  const errorStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
+  if (errorStr.includes('502') && errorStr.includes('cloudflare')) {
+    return res.status(502).json({ error: 'Supabase project is paused or unreachable. Please log into your Supabase dashboard and unpause the project.' });
+  }
+  
+  res.status(500).json({ error: error.message || defaultMessage });
+};
+
 // Multer setup (Memory Storage)
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -69,8 +80,7 @@ app.get('/api/folders', async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error: any) {
-    console.error('Fetch folders error:', error);
-    res.status(500).json({ error: error.message || 'Server error' });
+    handleSupabaseError(error, res, 'Fetch folders error');
   }
 });
 
@@ -89,8 +99,7 @@ app.post('/api/admin/folders', requireAdmin, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error: any) {
-    console.error('Create folder error:', error);
-    res.status(500).json({ error: error.message || 'Server error' });
+    handleSupabaseError(error, res, 'Create folder error');
   }
 });
 
@@ -127,8 +136,7 @@ app.delete('/api/admin/folders/:id', requireAdmin, async (req, res) => {
 
     res.json({ message: 'Folder deleted successfully' });
   } catch (error: any) {
-    console.error('Delete folder error:', error);
-    res.status(500).json({ error: error.message || 'Server error' });
+    handleSupabaseError(error, res, 'Delete folder error');
   }
 });
 
@@ -161,8 +169,7 @@ app.get('/api/pdfs', async (req, res) => {
     
     res.json(clientPdfs);
   } catch (error: any) {
-    console.error('Fetch error:', error);
-    res.status(500).json({ error: error.message || 'Server error' });
+    handleSupabaseError(error, res, 'Fetch error');
   }
 });
 
@@ -205,8 +212,7 @@ app.post('/api/admin/upload-link', requireAdmin, async (req, res) => {
       }
     });
   } catch (error: any) {
-    console.error('Upload link error:', error);
-    res.status(500).json({ error: error.message || 'Server error' });
+    handleSupabaseError(error, res, 'Upload link error');
   }
 });
 
@@ -270,8 +276,7 @@ app.post('/api/admin/upload', requireAdmin, (req, res) => {
         }
       });
     } catch (error: any) {
-      console.error('Upload error:', error);
-      res.status(500).json({ error: error.message || 'Server error' });
+      handleSupabaseError(error, res, 'Upload error');
     }
   });
 });
@@ -309,8 +314,7 @@ app.delete('/api/admin/pdfs/:id', requireAdmin, async (req, res) => {
 
     res.json({ message: 'PDF deleted successfully' });
   } catch (error: any) {
-    console.error('Delete error:', error);
-    res.status(500).json({ error: error.message || 'Server error' });
+    handleSupabaseError(error, res, 'Delete error');
   }
 });
 
@@ -348,9 +352,10 @@ app.get('/api/pdfs/:id/download', async (req, res) => {
     
     res.send(buffer);
   } catch (error: any) {
-    console.error('Download error:', error);
     if (!res.headersSent) {
-      res.status(500).json({ error: error.message || 'Server error' });
+      handleSupabaseError(error, res, 'Download error');
+    } else {
+      console.error('Download error:', error);
     }
   }
 });
@@ -389,9 +394,10 @@ app.get('/api/pdfs/:id/view', async (req, res) => {
     
     res.send(buffer);
   } catch (error: any) {
-    console.error('View error:', error);
     if (!res.headersSent) {
-      res.status(500).json({ error: error.message || 'Server error' });
+      handleSupabaseError(error, res, 'View error');
+    } else {
+      console.error('View error:', error);
     }
   }
 });
