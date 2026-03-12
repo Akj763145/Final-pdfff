@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
+import { AdBanner } from './components/AdBanner';
 
 // --- Types ---
 interface Folder {
@@ -241,6 +242,7 @@ function ClientPortal() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <AdBanner className="mb-12" />
         {(currentFolder || viewMode === 'downloads') && !searchQuery ? (
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
@@ -414,6 +416,7 @@ function ClientPortal() {
             )}
           </>
         )}
+        <AdBanner className="mt-12" />
       </main>
 
       {/* Footer */}
@@ -1268,6 +1271,17 @@ function AboutPage() {
 
 // --- Main App Component ---
 export default function App() {
+  useEffect(() => {
+    const clientId = (import.meta as any).env.VITE_ADSENSE_CLIENT_ID || 'ca-pub-6157215002118614';
+    if (clientId && !document.querySelector('script[src*="adsbygoogle.js"]')) {
+      const script = document.createElement('script');
+      script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`;
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      document.head.appendChild(script);
+    }
+  }, []);
+
   return (
     <HashRouter>
       <Routes>
