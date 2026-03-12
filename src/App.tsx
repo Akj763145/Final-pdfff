@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Link, useNavigate, useSearchParams } from 'react-router';
+import { HashRouter, Routes, Route, Link, useNavigate } from 'react-router';
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -75,39 +75,11 @@ function ThemeToggle() {
 function ClientPortal() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const folderId = searchParams.get('folder');
-  const currentFolder = folders.find(f => f.id === folderId) || null;
-
-  const setCurrentFolder = (folder: Folder | null) => {
-    setSearchParams(prev => {
-      const newParams = new URLSearchParams(prev);
-      if (folder) {
-        newParams.set('folder', folder.id);
-      } else {
-        newParams.delete('folder');
-      }
-      return newParams;
-    });
-  };
-
+  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const viewMode = (searchParams.get('view') as 'all' | 'downloads') || 'all';
-
-  const setViewMode = (mode: 'all' | 'downloads') => {
-    setSearchParams(prev => {
-      const newParams = new URLSearchParams(prev);
-      if (mode === 'downloads') {
-        newParams.set('view', 'downloads');
-      } else {
-        newParams.delete('view');
-      }
-      return newParams;
-    });
-  };
-
+  const [viewMode, setViewMode] = useState<'all' | 'downloads'>('all');
   const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -224,16 +196,8 @@ function ClientPortal() {
                   >
                     <button 
                       onClick={() => { 
-                        setSearchParams(prev => {
-                          const newParams = new URLSearchParams(prev);
-                          if (viewMode === 'all') {
-                            newParams.set('view', 'downloads');
-                          } else {
-                            newParams.delete('view');
-                          }
-                          newParams.delete('folder');
-                          return newParams;
-                        });
+                        setViewMode(viewMode === 'all' ? 'downloads' : 'all'); 
+                        setCurrentFolder(null); 
                         setIsMenuOpen(false);
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition-colors ${viewMode === 'downloads' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
@@ -402,7 +366,7 @@ function ClientPortal() {
                       <div className="w-10 h-10 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-3 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 transition-colors">
                         <FileText className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-1 line-clamp-2 leading-tight" title={pdf.filename}>
+                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-1 break-words leading-tight" title={pdf.filename}>
                         {pdf.filename}
                       </h3>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
@@ -548,22 +512,7 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
 function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => void }) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const folderId = searchParams.get('folder');
-  const currentFolder = folders.find(f => f.id === folderId) || null;
-
-  const setCurrentFolder = (folder: Folder | null) => {
-    setSearchParams(prev => {
-      const newParams = new URLSearchParams(prev);
-      if (folder) {
-        newParams.set('folder', folder.id);
-      } else {
-        newParams.delete('folder');
-      }
-      return newParams;
-    });
-  };
-
+  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [uploadFolderId, setUploadFolderId] = useState<string>('');
   const [uploadMode, setUploadMode] = useState<'file' | 'link'>('file');
   const [linkUrl, setLinkUrl] = useState('');
@@ -1109,7 +1058,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                                     <FileText className="w-6 h-6" />
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50 truncate" title={pdf.filename}>
+                                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50 break-words" title={pdf.filename}>
                                       {pdf.filename}
                                     </p>
                                     <div className="flex items-center gap-2 sm:gap-3 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
