@@ -89,19 +89,30 @@ function ClientPortal() {
   const currentFolder = folders.find(f => f.id === folderId) || null;
 
   const setCurrentFolder = (folder: Folder | null) => {
-    if (folder) {
-      setSearchParams({ folder: folder.id });
-    } else {
-      setSearchParams({});
-    }
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (folder) {
+        next.set('folder', folder.id);
+        next.delete('view');
+      } else {
+        next.delete('folder');
+      }
+      return next;
+    });
   };
 
   const setViewMode = (mode: 'all' | 'downloads') => {
-    if (mode === 'downloads') {
-      setSearchParams({ view: 'downloads' });
-    } else {
-      setSearchParams({});
-    }
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (mode === 'downloads') {
+        next.set('view', 'downloads');
+        next.delete('folder');
+      } else {
+        next.delete('view');
+        next.delete('folder');
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -118,7 +129,11 @@ function ClientPortal() {
     const stored = localStorage.getItem('downloadedPdfs');
     if (stored) {
       try {
-        setDownloadedPdfIds(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const ids = parsed.map(item => typeof item === 'object' && item !== null ? item.id : item).filter(Boolean);
+          setDownloadedPdfIds(ids);
+        }
       } catch (e) {}
     }
     fetchData();
@@ -162,7 +177,11 @@ function ClientPortal() {
     setDownloadedPdfIds(prev => {
       if (!prev.includes(pdf.id)) {
         const next = [...prev, pdf.id];
-        localStorage.setItem('downloadedPdfs', JSON.stringify(next));
+        try {
+          localStorage.setItem('downloadedPdfs', JSON.stringify(next));
+        } catch (e) {
+          console.error('Failed to save to localStorage', e);
+        }
         return next;
       }
       return prev;
@@ -180,7 +199,7 @@ function ClientPortal() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
-      <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 transition-colors duration-200">
+      <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-none">
@@ -217,7 +236,6 @@ function ClientPortal() {
                     <button 
                       onClick={() => { 
                         setViewMode(viewMode === 'all' ? 'downloads' : 'all'); 
-                        setCurrentFolder(null); 
                         setIsMenuOpen(false);
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition-colors ${viewMode === 'downloads' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'}`}
@@ -555,11 +573,15 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
   const currentFolder = folders.find(f => f.id === folderId) || null;
 
   const setCurrentFolder = (folder: Folder | null) => {
-    if (folder) {
-      setSearchParams({ folder: folder.id });
-    } else {
-      setSearchParams({});
-    }
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (folder) {
+        next.set('folder', folder.id);
+      } else {
+        next.delete('folder');
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -805,7 +827,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
-      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 transition-colors duration-200">
+      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-zinc-900 dark:bg-zinc-100 rounded-lg flex items-center justify-center">
@@ -1192,7 +1214,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
 function AboutPage() {
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
-      <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 transition-colors duration-200">
+      <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-none">
