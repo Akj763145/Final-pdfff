@@ -1,9 +1,11 @@
 import { HashRouter, Routes, Route, Link, useNavigate, useSearchParams } from 'react-router';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye } from 'lucide-react';
+import { FileText, Upload, Trash2, Download, Lock, LogOut, File, AlertCircle, CheckCircle2, ChevronRight, Search, Loader2, Folder as FolderIcon, FolderPlus, ArrowLeft, Moon, Sun, MoreVertical, Eye, Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { AdBanner } from './components/AdBanner';
+import { supabase, isSupabaseConfigured, supabaseConfigError } from './supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 // --- Types ---
 interface Folder {
@@ -104,6 +106,7 @@ function ClientPortal() {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-desc' | 'size-asc'>('date-desc');
   const [downloadedPdfIds, setDownloadedPdfIds] = useState<string[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedPdfForInfo, setSelectedPdfForInfo] = useState<PdfFile | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -164,37 +167,54 @@ function ClientPortal() {
 
   const fetchData = async () => {
     try {
-      const [foldersRes, pdfsRes] = await Promise.all([
-        fetch('/api/folders'),
-        fetch('/api/pdfs')
-      ]);
-      
-      if (!foldersRes.ok || !pdfsRes.ok) {
-        throw new Error('Failed to fetch data. Did you run the SQL script in Supabase?');
-      }
-      
-      const foldersData = await foldersRes.json();
-      const pdfsData = await pdfsRes.json();
-      
-      setFolders(foldersData);
-      setPdfs(pdfsData);
+      const { data: foldersData, error: foldersError } = await supabase.from('folders').select('*').order('name');
+      if (foldersError) throw foldersError;
+
+      const { data: pdfsData, error: pdfsError } = await supabase.from('pdfs').select('*').order('upload_date', { ascending: false });
+      if (pdfsError) throw pdfsError;
+
+      setFolders(foldersData || []);
+      const mappedPdfs = (pdfsData || []).map(p => ({
+        id: p.id,
+        filename: p.filename,
+        uploadDate: p.upload_date,
+        size: p.size,
+        folderId: p.folder_id,
+        isLink: p.is_link,
+        link: p.link
+      }));
+      setPdfs(mappedPdfs);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = (pdf: PdfFile) => {
+  const handleDownload = async (pdf: PdfFile) => {
     if (pdf.isLink && pdf.link) {
       window.open(pdf.link, '_blank');
     } else {
-      const a = document.createElement('a');
-      a.href = `/api/pdfs/${pdf.id}/download`;
-      a.download = pdf.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      try {
+        const { data, error } = await supabase.from('pdfs').select('storage_path').eq('id', pdf.id).single();
+        if (error) throw error;
+        if (data && data.storage_path) {
+          const { data: downloadData, error: downloadError } = await supabase.storage.from('pdfs').download(data.storage_path);
+          if (downloadError) throw downloadError;
+          
+          const url = URL.createObjectURL(downloadData);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = pdf.filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) {
+        console.error('Download failed', err);
+        alert('Failed to download file.');
+      }
     }
 
     setDownloadedPdfIds(prev => {
@@ -489,6 +509,95 @@ function ClientPortal() {
         <AdBanner className="mt-12" />
       </main>
 
+      {/* Metadata Modal */}
+      <AnimatePresence>
+        {selectedPdfForInfo && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPdfForInfo(null)}
+              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+            >
+              <div className="p-6 sm:p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Document Details</h3>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Metadata and file information</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedPdfForInfo(null)}
+                    className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Filename</p>
+                    <p className="text-zinc-900 dark:text-zinc-50 font-medium break-all">{selectedPdfForInfo.filename}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                      <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">File Size</p>
+                      <p className="text-zinc-900 dark:text-zinc-50 font-medium">{selectedPdfForInfo.isLink ? 'External Link' : formatBytes(selectedPdfForInfo.size)}</p>
+                    </div>
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                      <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Upload Date</p>
+                      <p className="text-zinc-900 dark:text-zinc-50 font-medium">{formatDate(selectedPdfForInfo.uploadDate)}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Document ID</p>
+                    <p className="text-zinc-900 dark:text-zinc-50 font-mono text-[10px] break-all">{selectedPdfForInfo.id}</p>
+                  </div>
+
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Genre / Folder</p>
+                    <p className="text-zinc-900 dark:text-zinc-50 font-medium">
+                      {folders.find(f => f.id === selectedPdfForInfo.folderId)?.name || 'Uncategorized'}
+                    </p>
+                  </div>
+
+                  {selectedPdfForInfo.isLink && (
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                      <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Source Link</p>
+                      <p className="text-indigo-600 dark:text-indigo-400 font-medium break-all text-xs underline truncate">
+                        <a href={selectedPdfForInfo.link || '#'} target="_blank" rel="noopener noreferrer">{selectedPdfForInfo.link}</a>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={() => setSelectedPdfForInfo(null)}
+                    className="w-full py-4 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl font-bold hover:bg-indigo-600 dark:hover:bg-indigo-500 transition-colors shadow-lg shadow-zinc-900/20 dark:shadow-none"
+                  >
+                    Close Details
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Footer */}
       <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 py-8 text-center bg-white dark:bg-zinc-900 transition-colors duration-200">
         <p className="text-zinc-500 dark:text-zinc-400 font-medium">proudly made by bihari</p>
@@ -510,20 +619,13 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
     setError('');
 
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-
-      if (!res.ok) {
+      if (password === '7673085672') {
+        onLogin(password);
+      } else {
         throw new Error('Invalid password');
       }
-
-      const data = await res.json();
-      onLogin(data.token);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Invalid password');
     } finally {
       setLoading(false);
     }
@@ -646,38 +748,55 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
 
   const fetchData = async () => {
     try {
-      const [foldersRes, pdfsRes] = await Promise.all([
-        fetch('/api/folders'),
-        fetch('/api/pdfs')
-      ]);
-      
-      if (!foldersRes.ok || !pdfsRes.ok) {
-        throw new Error('Failed to fetch data. Did you run the SQL script in Supabase?');
-      }
-      
-      const foldersData = await foldersRes.json();
-      const pdfsData = await pdfsRes.json();
-      
-      setFolders(foldersData);
-      setPdfs(pdfsData);
+      const { data: foldersData, error: foldersError } = await supabase.from('folders').select('*').order('name');
+      if (foldersError) throw foldersError;
+
+      const { data: pdfsData, error: pdfsError } = await supabase.from('pdfs').select('*').order('upload_date', { ascending: false });
+      if (pdfsError) throw pdfsError;
+
+      setFolders(foldersData || []);
+      const mappedPdfs = (pdfsData || []).map(p => ({
+        id: p.id,
+        filename: p.filename,
+        uploadDate: p.upload_date,
+        size: p.size,
+        folderId: p.folder_id,
+        isLink: p.is_link,
+        link: p.link
+      }));
+      setPdfs(mappedPdfs);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = (pdf: PdfFile) => {
+  const handleDownload = async (pdf: PdfFile) => {
     if (pdf.isLink && pdf.link) {
       window.open(pdf.link, '_blank');
       return;
     }
-    const a = document.createElement('a');
-    a.href = `/api/pdfs/${pdf.id}/download`;
-    a.download = pdf.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      const { data, error } = await supabase.from('pdfs').select('storage_path').eq('id', pdf.id).single();
+      if (error) throw error;
+      if (data && data.storage_path) {
+        const { data: downloadData, error: downloadError } = await supabase.storage.from('pdfs').download(data.storage_path);
+        if (downloadError) throw downloadError;
+        
+        const url = URL.createObjectURL(downloadData);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = pdf.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Download failed', err);
+      alert('Failed to download file.');
+    }
   };
 
   const handleCreateFolder = async () => {
@@ -686,26 +805,15 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     setError('');
     
     try {
-      const res = await fetch('/api/admin/folders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: newFolderName.trim() })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to create folder');
-      }
+      const { error } = await supabase.from('folders').insert([{ name: newFolderName.trim() }]);
+      if (error) throw error;
 
       setSuccess('Genre folder created successfully');
       setNewFolderName('');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Failed to create folder');
     } finally {
       setCreatingFolder(false);
     }
@@ -721,23 +829,32 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     setSuccess('');
 
     try {
-      const res = await fetch(`/api/admin/folders/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // 1. Get all PDFs in this folder to delete from storage
+      const { data: pdfsToDelete, error: fetchError } = await supabase
+        .from('pdfs')
+        .select('storage_path')
+        .eq('folder_id', id);
+        
+      if (fetchError) throw fetchError;
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Delete failed');
+      // 2. Delete files from Storage
+      if (pdfsToDelete && pdfsToDelete.length > 0) {
+        const paths = pdfsToDelete.map(p => p.storage_path).filter(Boolean);
+        if (paths.length > 0) {
+          const { error: storageError } = await supabase.storage.from('pdfs').remove(paths);
+          if (storageError) console.error("Storage delete error:", storageError);
+        }
       }
+
+      // 3. Delete folder from Database (Cascade will delete PDF rows)
+      const { error: dbError } = await supabase.from('folders').delete().eq('id', id);
+      if (dbError) throw dbError;
 
       setSuccess('Folder and its documents deleted successfully');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Failed to delete folder');
     }
   };
 
@@ -752,23 +869,15 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     setSuccess('');
     
     try {
-      const res = await fetch('/api/admin/upload-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          filename: linkFilename.trim(),
-          link: linkUrl.trim(),
-          folderId: uploadFolderId || null
-        })
-      });
+      const { error } = await supabase.from('pdfs').insert([{
+        filename: linkFilename.trim(),
+        link: linkUrl.trim(),
+        is_link: true,
+        size: 0,
+        folder_id: uploadFolderId || null
+      }]);
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to upload link');
-      }
+      if (error) throw error;
 
       setSuccess('Link added successfully');
       setLinkUrl('');
@@ -776,7 +885,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Failed to upload link');
     } finally {
       setUploadingLink(false);
     }
@@ -799,27 +908,29 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
         continue;
       }
 
-      const formData = new FormData();
-      formData.append('pdf', file);
-      if (uploadFolderId) {
-        formData.append('folderId', uploadFolderId);
-      }
-
       try {
-        const res = await fetch('/api/admin/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExt}`;
+        const filePath = `${fileName}`;
 
-        if (res.ok) {
-          successCount++;
-        } else {
-          failCount++;
-        }
+        const { error: uploadError } = await supabase.storage
+          .from('pdfs')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { error: dbError } = await supabase.from('pdfs').insert([{
+          filename: file.name,
+          size: file.size,
+          storage_path: filePath,
+          folder_id: uploadFolderId || null,
+          is_link: false
+        }]);
+
+        if (dbError) throw dbError;
+        successCount++;
       } catch (err) {
+        console.error('Upload error:', err);
         failCount++;
       }
     }
@@ -853,29 +964,50 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
     setSuccess('');
 
     try {
-      const res = await fetch(`/api/admin/pdfs/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // 1. Get storage path
+      const { data: pdf, error: fetchError } = await supabase
+        .from('pdfs')
+        .select('storage_path, is_link')
+        .eq('id', id)
+        .single();
+        
+      if (fetchError) throw fetchError;
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Delete failed');
+      // 2. Delete from storage if not a link
+      if (pdf && !pdf.is_link && pdf.storage_path) {
+        const { error: storageError } = await supabase.storage.from('pdfs').remove([pdf.storage_path]);
+        if (storageError) console.error("Storage delete error:", storageError);
       }
+
+      // 3. Delete from DB
+      const { error: dbError } = await supabase.from('pdfs').delete().eq('id', id);
+      if (dbError) throw dbError;
 
       setSuccess('File deleted successfully');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Failed to delete file');
     }
   };
 
   const displayedPdfs = pdfs.filter(pdf => 
     currentFolder ? pdf.folderId === currentFolder.id : !pdf.folderId
   );
+
+  if (supabaseConfigError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-2xl p-8 shadow-xl border border-red-200 dark:border-red-900/30 text-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Configuration Error</h2>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-6">{supabaseConfigError}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
