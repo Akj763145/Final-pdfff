@@ -22,6 +22,7 @@ interface PdfFile {
   folderId: string | null;
   isLink?: boolean;
   link?: string | null;
+  storagePath?: string;
 }
 
 // --- Helper Components ---
@@ -181,13 +182,44 @@ function ClientPortal() {
         size: p.size,
         folderId: p.folder_id,
         isLink: p.is_link,
-        link: p.link
+        link: p.link,
+        storagePath: p.storage_path
       }));
       setPdfs(mappedPdfs);
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleView = async (pdf: PdfFile) => {
+    if (pdf.isLink && pdf.link) {
+      window.open(pdf.link, '_blank');
+      return;
+    }
+    try {
+      if (pdf.storagePath) {
+        const { data } = supabase.storage.from('pdfs').getPublicUrl(pdf.storagePath);
+        if (data && data.publicUrl) {
+          window.open(data.publicUrl, '_blank');
+        } else {
+          throw new Error('Could not get public URL');
+        }
+      } else {
+        // Fallback if storagePath is not loaded
+        const { data, error } = await supabase.from('pdfs').select('storage_path').eq('id', pdf.id).single();
+        if (error) throw error;
+        if (data && data.storage_path) {
+          const { data: publicUrlData } = supabase.storage.from('pdfs').getPublicUrl(data.storage_path);
+          if (publicUrlData && publicUrlData.publicUrl) {
+            window.open(publicUrlData.publicUrl, '_blank');
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Error viewing PDF:', err);
+      alert('Failed to open PDF for viewing.');
     }
   };
 
@@ -485,7 +517,7 @@ function ClientPortal() {
                       </div>
                       <div className="mt-auto flex gap-2">
                         <button
-                          onClick={() => window.open(pdf.isLink && pdf.link ? pdf.link : `/api/pdfs/${pdf.id}/view`, '_blank')}
+                          onClick={() => handleView(pdf)}
                           className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 py-2 px-2 rounded-lg text-xs font-medium transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -762,13 +794,44 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
         size: p.size,
         folderId: p.folder_id,
         isLink: p.is_link,
-        link: p.link
+        link: p.link,
+        storagePath: p.storage_path
       }));
       setPdfs(mappedPdfs);
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleView = async (pdf: PdfFile) => {
+    if (pdf.isLink && pdf.link) {
+      window.open(pdf.link, '_blank');
+      return;
+    }
+    try {
+      if (pdf.storagePath) {
+        const { data } = supabase.storage.from('pdfs').getPublicUrl(pdf.storagePath);
+        if (data && data.publicUrl) {
+          window.open(data.publicUrl, '_blank');
+        } else {
+          throw new Error('Could not get public URL');
+        }
+      } else {
+        // Fallback if storagePath is not loaded
+        const { data, error } = await supabase.from('pdfs').select('storage_path').eq('id', pdf.id).single();
+        if (error) throw error;
+        if (data && data.storage_path) {
+          const { data: publicUrlData } = supabase.storage.from('pdfs').getPublicUrl(data.storage_path);
+          if (publicUrlData && publicUrlData.publicUrl) {
+            window.open(publicUrlData.publicUrl, '_blank');
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Error viewing PDF:', err);
+      alert('Failed to open PDF for viewing.');
     }
   };
 
@@ -1309,7 +1372,7 @@ function AdminDashboard({ token, onLogout }: { token: string; onLogout: () => vo
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <button
-                                    onClick={() => window.open(pdf.isLink && pdf.link ? pdf.link : `/api/pdfs/${pdf.id}/view`, '_blank')}
+                                    onClick={() => handleView(pdf)}
                                     className="p-2.5 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
                                     title="View document"
                                   >
